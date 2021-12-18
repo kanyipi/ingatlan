@@ -247,8 +247,8 @@ get_clean_all <- function(df) {
 # for the date of the scrape but that would mess up my read back
 # so maybe a better solution would be to tag the properties when read in with Sys.time()
 
-scrapename <- "hungary"
-get_read_property(scrapename, "https://ingatlan.com/lista/elado+lakas")
+scrapename <- "budapestall"
+get_read_property(scrapename, "https://ingatlan.com/lista/elado+lakas+budapest")
 df <- get_all_property(scrapename) %>% get_clean_all()
 
 # some upgrades which could be done:
