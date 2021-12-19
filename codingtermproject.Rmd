@@ -93,11 +93,11 @@ get_read_property <- function(nameofcsvs, linktoscrape, noofpagestoget = 0,
   # noofpagestoget is how much pages we should get, if 0 or not set it will get all
   # batchsize is how many pages goes into a csv
   # startbatchnumber is to set the first batch, good for saving default=0
-  
-  #create the dir  
+
+  # create the dir
   dir.create(nameofcsvs)
 
-  #get the last page number  
+  # get the last page number
   lastpagetext <- read_html(linktoscrape) %>%
     html_nodes(".pagination__page-number") %>%
     html_text() %>%
@@ -107,7 +107,7 @@ get_read_property <- function(nameofcsvs, linktoscrape, noofpagestoget = 0,
     substr(2, nchar(lastpagetext)) %>%
     parse_number()
 
-  #check whats smaller the last page or the noofpages to get
+  # check whats smaller the last page or the noofpages to get
   if (noofpagestoget != 0) {
     if (noofpagestoget < lastpageno) {
       lastpageno <- noofpagestoget
@@ -116,7 +116,7 @@ get_read_property <- function(nameofcsvs, linktoscrape, noofpagestoget = 0,
 
   lastpagebatch <- floor(lastpageno / batchsize) + 1
 
-  
+
   # iterate through the batches
   for (i in startbatchnumber:lastpagebatch) {
     print(paste("start", i))
@@ -126,43 +126,43 @@ get_read_property <- function(nameofcsvs, linktoscrape, noofpagestoget = 0,
     si <- ((i * batchsize) + 1)
     ei <- (((i + 1) * batchsize))
 
-    #check to see if ei is bigger than lastpageno
+    # check to see if ei is bigger than lastpageno
     if (lastpageno < ei) {
       ei <- lastpageno
     }
 
-    #get all search pages in batch
+    # get all search pages in batch
     links_to_get_links <- paste0(linktoscrape, "?page=", si:ei)
-    #get all property links from the search pages
+    # get all property links from the search pages
     link_list <- sapply(links_to_get_links, get_links_on_page)
 
-    #initiate
+    # initiate
     data_list <- list()
     k <- 0
-    
-    #loop through pages with foor because I couldnt try catch a lapply
+
+    # loop through pages with foor because I couldnt try catch a lapply
     for (j in link_list) {
-      #try catch as http 503 was very common
+      # try catch as http 503 was very common
       tryCatch(
         {
           oneproperty <- get_one_property(j)
-          #only k if get_one_property(j) did not error
+          # only k if get_one_property(j) did not error
           k <- k + 1
         },
         error = function(e) {
-          #show error and errored link
+          # show error and errored link
           print(e)
           print(j)
         }
       )
-      #if list has data point insert it to data_list
+      # if list has data point insert it to data_list
       if (length(oneproperty) > 1) {
         data_list[[k]] <- oneproperty
       }
     }
-    #rbind lists to data frame
+    # rbind lists to data frame
     df <- rbindlist(data_list, fill = T)
-    #save data frame
+    # save data frame
     csvname <- paste0(nameofcsvs, "/", nameofcsvs, i, ".csv")
     write.csv(df, csvname)
   }
@@ -214,17 +214,17 @@ elementlist <- function(lst, n) {
 }
 
 get_clean <- function(df) {
-  
+
   # remove X as it got created when joining the subfiles
   df <- df %>% subset(select = -X)
-  
+
   # check for unique values for description and area,
   # we need area as a couple of residental park propeties have the same
   # description, but different area
   df <- df %>%
     group_by(description, area) %>%
     slice(1)
-  
+
   # convert the eur prices into huf prices using real time conversion rate
   conversiourl <- "https://www.xe.com/currencyconverter/convert/?Amount=1&From=EUR&To=HUF"
   t <- read_html(conversiourl)
@@ -235,40 +235,30 @@ get_clean <- function(df) {
     elementlist(1) %>%
     substr(1, 7) %>%
     as.double()
-  
+
   # convert currencies to double
   df <- df %>% mutate(price_in_cur = elementlist(str_split(price, " "), 3))
   df <- df %>% mutate(price_in_cur = ifelse(price_in_cur != "Ft", "EUR",
-                                            ifelse(price_in_cur == "Ft", "HUF", "other")
+    ifelse(price_in_cur == "Ft", "HUF", "other")
   ))
   df <- df %>% mutate(price = elementlist(str_split(price, " "), 1))
   df <- df %>% mutate(price = as.double(str_replace(price, ",", ".")))
   df <- df %>% mutate(price = as.double(ifelse(price_in_cur == "EUR", price * eur_to_huf / 1000000, price)))
-  
+
   # convert the area into integer
   df <- df %>% mutate(area = (as.numeric(elementlist(str_split(area, " "), 1))))
-  
+
   # convert number of rooms to double
   # filtering as there are some properties where there are no full rooms, or wrong data such as 540 m
   # this removes 34 observations
   df <- df %>% filter(length(str_split(noroom, " ")[[1]]) != 2)
-  
+
   df <- df %>% mutate(nohalfroom = ifelse(length(str_split(noroom, "\\+")[[1]]) > 1, parse_integer(elementlist(str_split(noroom, " "), 3)), 0))
   df <- df %>% mutate(noroom = as.numeric(elementlist(str_split(noroom, " "), 1)))
-  
-  
+
+
   df <- df %>% mutate(noroom = as.double(noroom + (nohalfroom / 2)))
-  
-  # convert condition to integer
-  df <- df %>%
-    mutate(condition = dplyr::recode(Ingatlan.állapota, "nincs megadva" = "NA", "befejezetlen" = "0", "felújítandó" = "1", "közepes állapotú" = "2", "jó állapotú" = "3", "felújított" = "4", "újszeru" = "5", "új építésu" = "6")) %>%
-    mutate(condition = as.numeric(condition))
-  
-  # convert year built to integer
-  df <- df %>%
-    mutate(yearbuilt = dplyr::recode(Építés.éve, "nincs megadva" = "NA", "2001 és 2010 között" = "2010", "1950 elott" = "1950", "1950 és 1980 között" = "1980", "1981 és 2000 közöt" = "2000")) %>%
-    mutate(yearbuilt = as.numeric(yearbuilt))
-  
+
   return(df)
 }
 
@@ -291,11 +281,11 @@ get_clean <- function(df) {
 # so maybe a better solution would be to tag the properties when read in with Sys.time()
 
 ## HUNGARY ALL SCRAPE
-#scrapename <- "hungary"
-#get_read_property(scrapename, "https://ingatlan.com/lista/elado+lakas+budapest")
-#df <- get_all_property(scrapename)
-#df <- df %>% get_clean()
-#write.csv(df,"hungaryall.csv")
+# scrapename <- "hungary"
+# get_read_property(scrapename, "https://ingatlan.com/lista/elado+lakas+budapest")
+# df <- get_all_property(scrapename)
+# df <- df %>% get_clean()
+# write.csv(df,"hungaryall.csv")
 
 
 ## READ IN CLEANED DATA
@@ -329,8 +319,40 @@ get_clean which cleans the data
 
 ## Analysis
 
+```{r}
+ggplot(df, aes(x = price)) +
+  geom_histogram(binwidth=10) + 
+  xlim(0,300) +
+  theme_bw()
+```
 
 
+```{r}
+ggplot(df, aes(x = area)) +
+  geom_histogram(binwidth=10) + 
+  xlim(0,300) +
+  theme_bw()
+```
+
+
+```{r}
+df %>% 
+  filter(!is.na(condition) & !is.na(price)) %>%
+  mutate(condition=as.factor(condition)) %>% 
+  ggplot(aes(x = condition, y = price, colour = condition)) + 
+  ylim(0,300) +
+  geom_violin() +
+  geom_jitter(alpha = .2, width = .1) +
+  geom_boxplot(alpha = .5) +
+  guides(colour = 'none') + 
+  labs(title = "Examining the effect of education level on BMI", 
+       x = "Education Level", 
+       y = "BMI")
+```
+
+```{r}
+
+```
 ## Conclusion
 
 In conclusion this is a very nice tool to scrape ingatlan.com as you wish

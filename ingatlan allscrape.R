@@ -285,8 +285,8 @@ get_clean <- function(df) {
 ## READ
 #scrapename <- "hungary"
 #get_read_property(scrapename, "https://ingatlan.com/lista/elado+lakas+budapest")
-df <- get_all_property(scrapename)
-df <- df %>% get_clean()
+#df <- get_all_property(scrapename)
+#df <- df %>% get_clean()
 #write.csv(df,"hungaryall.csv")
 
 df <- read.csv("https://raw.githubusercontent.com/kanyipi/ingatlan/main/hungary/hungaryall.csv")
