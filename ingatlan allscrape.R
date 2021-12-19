@@ -226,6 +226,13 @@ get_clean <- function(df) {
     elementlist(1) %>%
     substr(1, 7) %>%
     as.double()
+  
+  df <- df %>% mutate(price_in_cur = elementlist(str_split(price, " "), 3))
+  df <- df %>% mutate(price_in_cur = ifelse(price_in_cur != "Ft", "EUR",
+                                            ifelse(price_in_cur == "Ft", "HUF", "other")
+  ))
+  df <- df %>% mutate(price = elementlist(str_split(price, " "), 1))
+  df <- df %>% mutate(price = as.double(str_replace(price, ",", ".")))
   df <- df %>% mutate(price = as.double(ifelse(price_in_cur == "EUR", price * eur_to_huf / 1000000, price)))
   
   # convert the area into integer
@@ -274,14 +281,14 @@ get_clean <- function(df) {
 # so maybe a better solution would be to tag the properties when read in with Sys.time()
 
 
-#scrapename <- "budapestall"
+scrapename <- "hungary"
 #get_read_property(scrapename, "https://ingatlan.com/lista/elado+lakas+budapest")
-dftest1 <- get_all_property(scrapename)
-write.csv(df,"budapestallfull.csv")
+df <- get_all_property(scrapename)
+write.csv(df,"hungaryall.csv")
 
-dftest <- read.csv("https://raw.githubusercontent.com/kanyipi/ingatlan/main/budapestall/budapestallfull.csv")
+df <- read.csv("https://raw.githubusercontent.com/kanyipi/ingatlan/main/")
 
-dftest <- dftest %>% get_clean()
+df <- df %>% get_clean()
 
 # some upgrades which could be done:
 # update the last page while running, as it may change
