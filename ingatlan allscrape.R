@@ -204,17 +204,19 @@ elementlist <- function(lst, n) {
   sapply(lst, `[`, n)
 }
 
-get_clean_all <- function(df) {
+get_clean <- function(df) {
+  
+  # remove X as it got created when joining the subfiles
   df <- df %>% subset(select = -X)
+  
+  # check for unique values for description and area,
+  # we need area as a couple of residental park propeties have the same
+  # description, but different area
   df <- df %>%
     group_by(description, area) %>%
     slice(1)
-  df <- df %>% mutate(price_in_cur = elementlist(str_split(price, " "), 3))
-  df <- df %>% mutate(price_in_cur = ifelse(price_in_cur != "Ft", "EUR",
-    ifelse(price_in_cur == "Ft", "HUF", "other")
-  ))
-  df <- df %>% mutate(price = elementlist(str_split(price, " "), 1))
-  df <- df %>% mutate(price = as.double(str_replace(price, ",", ".")))
+  
+  # convert the eur prices into huf prices using real time conversion rate
   conversiourl <- "https://www.xe.com/currencyconverter/convert/?Amount=1&From=EUR&To=HUF"
   t <- read_html(conversiourl)
   eur_to_huf <- t %>%
@@ -224,8 +226,32 @@ get_clean_all <- function(df) {
     elementlist(1) %>%
     substr(1, 7) %>%
     as.double()
-  df <- df %>% mutate(price = ifelse(price_in_cur == "EUR", price * eur_to_huf / 1000000, price))
-
+  df <- df %>% mutate(price = as.double(ifelse(price_in_cur == "EUR", price * eur_to_huf / 1000000, price)))
+  
+  # convert the area into integer
+  df <- df %>% mutate(area = (as.numeric(elementlist(str_split(area, " "), 1))))
+  
+  # convert number of rooms to double
+  # filtering as there are some properties where there are no full rooms, or wrong data such as 540 m
+  # this removes 34 observations
+  df <- df %>% filter(length(str_split(noroom, " ")[[1]]) != 2)
+  
+  df <- df %>% mutate(nohalfroom = ifelse(length(str_split(noroom, "\\+")[[1]]) > 1, parse_integer(elementlist(str_split(noroom, " "), 3)), 0))
+  df <- df %>% mutate(noroom = as.numeric(elementlist(str_split(noroom, " "), 1)))
+  
+  
+  df <- df %>% mutate(noroom = as.double(noroom + (nohalfroom / 2)))
+  
+  # convert condition to integer
+  df <- df %>%
+    mutate(condition = dplyr::recode(Ingatlan.állapota, "nincs megadva" = "NA", "befejezetlen" = "0", "felújítandó" = "1", "közepes állapotú" = "2", "jó állapotú" = "3", "felújított" = "4", "újszeru" = "5", "új építésu" = "6")) %>%
+    mutate(condition = as.numeric(condition))
+  
+  # convert year built to integer
+  df <- df %>%
+    mutate(yearbuilt = dplyr::recode(Építés.éve, "nincs megadva" = "NA", "2001 és 2010 között" = "2010", "1950 elott" = "1950", "1950 és 1980 között" = "1980", "1981 és 2000 közöt" = "2000")) %>%
+    mutate(yearbuilt = as.numeric(yearbuilt))
+  
   return(df)
 }
 
@@ -247,9 +273,15 @@ get_clean_all <- function(df) {
 # for the date of the scrape but that would mess up my read back
 # so maybe a better solution would be to tag the properties when read in with Sys.time()
 
-scrapename <- "budapestall"
+
+#scrapename <- "budapestall"
 #get_read_property(scrapename, "https://ingatlan.com/lista/elado+lakas+budapest")
-df <- get_all_property(scrapename) %>% get_clean_all()
+dftest1 <- get_all_property(scrapename)
+write.csv(df,"budapestallfull.csv")
+
+dftest <- read.csv("https://raw.githubusercontent.com/kanyipi/ingatlan/main/budapestall/budapestallfull.csv")
+
+dftest <- dftest %>% get_clean()
 
 # some upgrades which could be done:
 # update the last page while running, as it may change

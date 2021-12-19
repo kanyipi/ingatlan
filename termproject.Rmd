@@ -7,9 +7,7 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
-# knitr::opts_chunk$set(fig.pos = "!H", out.extra = "")
-# Set graph size
-# knitr::opts_chunk$set(echo = FALSE, out.width = "50%" )#fig.asp = 0.5, fig.width = 7, out.width = "90%" )
+
 
 rm(list = ls())
 
@@ -32,15 +30,16 @@ df <- read.csv("https://raw.githubusercontent.com/kanyipi/ingatlan/main/budapest
 
 ## Introduction
 
-This is a causal analysis on the properties on sale in Budapest. The data was scraped from ingatlan.com by me on the 16th of December, 2021. I investigate the effect of size of the property on the prize of the property. 
+This is a causal analysis on the properties on sale in Budapest. The data was scraped from ingatlan.com by me on the 16th of December, 2021. I investigate the effect of the size of the property on the price of the property. 
 
-HERE COMES THE MOTIVATION WHY THIS IS A MEANINGFUL PROJECT AND WHAT IS THE MAIN GOAL! TODO
-
+I think analysing housing prices is always meaningful, as it is a crucial part of our daily life, as everyone needs to live somewhere. People buy sell and rent properties all the time, which is influenced by the prices of the properties. Understanding the change in the prices offers us the opportunity to have further investigations.
+My goal is to see whether on average if larger properties are more expensive or not then smaller properties.
 
 ## Data
 
-The data is from ingatlan.com. Scraped on the 16th of December, 2021. The scrapper went through every property listed under https://ingatlan.com/szukites/elado+lakas+budapest. It scraped, the address, the price, the number of rooms, the description, and the 20 element long list below the description. We have 27908 observation and 27 variables.
-TODO appendixbe
+The data is from ingatlan.com. It was scraped on the 16th of December, 2021. The scrapper went through every property listed under https://ingatlan.com/szukites/elado+lakas+budapest. It scraped, the address, the price, the number of rooms, the description, and the 20 element long list below the description. We have 27908 observations and 27 variables.
+The scrape and the cleaning are more detailed in the appendix.
+TODO appendixbe kep es a scraper es clean filter.
 
 
 ```{r, echo=FALSE}
@@ -115,11 +114,13 @@ get_filtered <- function(df, cols, price_filter_1 = 5, price_filter_2 = 300, are
     drop_na()
 
   # n 18721
-
+  
+  # filtering on prices
   df <- df %>% filter(price_filter_1 < price && price < price_filter_2)
 
   # n 18387
 
+  # filtering on sizes
   df <- df %>% filter(area_filter_1 < area && area < area_filter_2)
 
   # n 18343
@@ -132,21 +133,27 @@ filter_cols <- c(
   "noroom", "yearbuilt", "condition"
 )
 
-df <- df %>% get_clean()
-df <- df %>% get_filtered(filter_cols)
+df <- df %>% get_clean() %>% get_filtered(filter_cols)
 
+# Creating log values for price and size
+df <- df %>% mutate(logprice = log(price))
+df <- df %>% mutate(logarea = log(area))
 
+# helper functions
 P95 <- function(x) {
   quantile(x, 0.95, na.rm = T)
 }
+
 P05 <- function(x) {
   quantile(x, 0.05, na.rm = T)
 }
-datasummary((`Price` <- price) +
-  (`Size` <- area) +
-  (`Number of rooms` <- noroom) +
-  (`Building year` <- yearbuilt) +
-  (`Condition` <- condition) ~
+
+#data summary
+datasummary((`Price` = price) +
+  (`Size` = area) +
+  (`Number of Rooms` = noroom) +
+  (`Building Year` = yearbuilt) +
+  (`Condition` = condition) ~
 Mean + Median + SD + Min + Max + P05 + P95,
 data = df,
 title = "Descriptive statistics"
@@ -154,23 +161,26 @@ title = "Descriptive statistics"
   kable_styling(latex_options = c("HOLD_position", "scale_down"))
 ```
 
-The number of observations is `r sum(!is.na(df$price))` for all of our key variables.
+The number of observations is `r sum(!is.na(df$price))` for all of our key variables. These are after filtering on price so that it is greater than 5M HUF, but less then 300M HUF. Also filtered on size so it is less greater than 10 m2, but less than 250 m2. I choose these values as I feel like these are filtering for habitable houses. Usually bigger and more expensive properties were multiple houses, for investing. While smaller and cheaper properties were not really houses, but part of houses and people looking for swap houses.
 
-DESCRIPTION OF THE SUMMARY STATS: WHAT CAN WE LEARN FROM THEM? TODO
+These are the summary stats of the already filtered dataset, so as we can see the minimums and maximum are close to the filter values.
+The mean of the price is 65.12M HUF the median is 54.5M HUF this means we have a long right tail.
+The mean of the Size is 69.60 m2 the median is 64.0 m2 this means we have a long right tail.
 
-As the focus is the price difference, the next Figure shows the histogram for this variable.
-
+As the focus are on the price and on the size, the next Figure shows the histograms for these variables.
+I show the rest of the histograms in the appendix.
+TODO
 ```{r, echo=FALSE, warning=FALSE, fig.width=8, fig.height = 3, fig.align="center" }
 # price
 p1 <- ggplot(df, aes(x = price)) +
   geom_histogram(binwidth = 10, fill = "navyblue", color = "white") +
-  labs(y = "Count", x = "Price of properties on sale in Budapest in million of HUF") +
+  labs(y = "Count", x = "Price of Properties on Sale in Budapest in Millions of HUF") +
   theme_bw()
 
-# area
+# size
 p2 <- ggplot(df, aes(x = area)) +
   geom_histogram(binwidth = 10, fill = "navyblue", color = "white") +
-  labs(y = "Count", x = "Size of properties on sale in Budapest in m2") +
+  labs(y = "Count", x = "Size of Properties on Sale in Budapest in m2") +
   theme_bw()
 
 association_figs <- ggarrange(p1, p2,
@@ -178,48 +188,55 @@ association_figs <- ggarrange(p1, p2,
   ncol = 2, nrow = 1
 )
 association_figs
-# TODO
 ```
 
-DESCRIPTION OF THE FIGURE. WHAT DOES IT TELS US?
+We can see the long right tail on the histograms.
 
-(May change the order of descriptive stats and graph.)
-
-The key pattern of association is:
+We can see the level, and log associations of price and area.
+The key pattern of associations are:
 
 ```{r, echo=FALSE, warning=FALSE, fig.width=4, fig.height = 3, fig.align="center" }
-chck_sp_normal <- function(x_var, x_lab) {
-  ggplot(df, aes(x = x_var, y = price)) +
+
+
+chck_sp_normal <- function(df,x_var, x_lab="", y_lab="") {
+  varlist <- c("price", x_var)
+  df2 <- df %>%
+    group_by(!!!rlang::syms(varlist)) %>%
+    mutate(weight = n()) %>%
+    mutate(weight_2 = (weight / 1000))
+  ggplot(df2, aes(x = (!!!rlang::syms(x_var)), y = price)) +
     geom_point(color = "red", size = 2, alpha = 0.6) +
     geom_smooth(method = "loess", formula = y ~ x) +
-    labs(x = x_lab, y = "Average prices") +
+    labs(x = x_lab, y = y_lab) +
     theme_bw()
 }
 
-chck_sp_log <- function(x_var, x_lab) {
-  ggplot(df, aes(x = x_var, y = logprice)) +
+chck_sp_log <- function(df,x_var, x_lab="", y_lab="") {
+  varlist <- c("logprice", x_var)
+  df2 <- df %>%
+    group_by(!!!rlang::syms(varlist)) %>%
+    mutate(weight = n()) %>%
+    mutate(weight_2 = (weight / 1000))
+  ggplot(df2, aes(x = (!!!rlang::syms(x_var)), y = logprice)) +
     geom_point(color = "red", size = 2, alpha = 0.6) +
     geom_smooth(method = "loess", formula = y ~ x) +
-    labs(x = x_lab, y = "Average prices") +
+    labs(x = x_lab, y = y_lab) +
     theme_bw()
 }
-
-df <- df %>% mutate(logprice = log(price))
-df <- df %>% mutate(logarea = log(area))
 
 
 # Our main interest: student-to-teacher ratio:
-p3 <- chck_sp_normal(df$area, "Size")
-p4 <- chck_sp_normal(df$logarea, "Log size")
-p5 <- chck_sp_log(df$area, "Size")
-p6 <- chck_sp_log(df$logarea, "Log size")
+p3 <- chck_sp_normal(df,"area", "", "Level Price")
+p4 <- chck_sp_normal(df,"logarea")
+p5 <- chck_sp_log(df,"area", " Level Size", "Log Price")
+p6 <- chck_sp_log(df,"logarea", "Log S
+                  ize")
 
 association_figs2 <- ggarrange(p3, p4, p5, p6,
   ncol = 2, nrow = 2
 )
 association_figs2
 
-chck_sp_log(df$condition, "condition")
 # TODO
 ```
 
@@ -256,59 +273,65 @@ reg5 <- feols(logprice ~ lspline(logarea, 4.5) + lspline(yearbuilt, 1990) +
 
 # Naming the coefficients for pretty output
 # TODO
-# alpha  <- round( reg5$coeftable[1,1] , 2 )
-# b1 <- round( reg5$coeftable[2,1] , 2 )
-# b2 <- round( reg5$coeftable[3,1] , 2 )
+ alpha  <- round( reg5$coeftable[1,1] , 2 )
+ b1 <- round( reg5$coeftable[2,1] , 2 )
+ b2 <- round( reg5$coeftable[3,1] , 2 )
 ```
 TODO
 My preferred model is:
 
-score = $`r alpha`$ $`r b1`$ $( student/teacher < 18)$ $`r b2`$ $( student/teacher \geq 18) + \delta Z$
+log(price)  = $`r alpha`$ + $`r b1`$ $( log(size) < 4,5)$ $`r b2`$ $( log area \geq 18) + \delta Z$
 
-where $Z$ are standing for the controls, which includes controlling for english language, lunch, other special characteristics and wealth measures. From this model we can infer:
+where $Z$ are standing for the controls, which includes controlling for year built, number of rooms, and condition. 
+From this model we can infer:
 
-- when every covariates are zero, students expected to have grade score of $`r alpha`$
-- when the student to teacher is one unit larger, but below the value of 18, we see students to have on average $`r abs(b1)`$ smaller grades.
-- when the student to teacher is one unit larger, with the value above or equal to 18, we see students to have on average $`r abs(b2)`$ smaller grades.
+- $`r alpha`$ is hard to interpret as both sides are in log, so we are more interested in the differences
+- when the size of properties is 1 percent larger, but below the log value of 4.5, we see properties to cost on average $`r abs(b1)`$ percent more.
+- when the size of properties is 1 percent larger, but the log value is above or equal to 4.5, we see properties to cost on average $`r abs(b2)`$ percent more.
 
-However, based on the heteroskedastic robust standard errors, these results are statistically non different from zero. To show that, I have run a two-sided hypothesis test:
+Based on the heteroskedastic robust standard errors, these results are statistically different from zero. To show that, I have run a two-sided hypothesis test:
 $$H_0:=\beta_1 = 0$$
 $$H_A:=\beta_1 \neq 0$$
 I have the t-statistic as `r round( reg5$coeftable[2,3] , 2 )` and the p-value as `r round( reg5$coeftable[2,4] , 2 )`, which confirms my conclusion.
 
-We compare multiple models to learn about the stability of the parameters. Bla-bla:
+We compare multiple models to learn about the stability of the parameters:
 
 ```{r, echo = FALSE }
-##
-# Summarize our findings:
-# varname_report <- c("(Intercept)" = "Intercept",
-#                    "stratio" = "student/teacher",
-#                    "lspline(stratio,18)1" = "student/teacher (<18)",
-#                    "lspline(stratio,18)2" = "student/teacher (>=18)",
-#                    "english_d" = "english_dummy")
-# groupConf <- list("English" = c("english"),
-#                   "Lunch" = c("lunch"),
-#               "Other Special" = c("special"),
-#               "Wealth Measures" = c("exptot","income","scratio"))
-# vars_omit <- c("english|lunch|special|salary|exptot|income|scratio")
 #
-# # Note: coefstat = 'confint' is just an example, usually you need to report se.
-# style_noHeaders = style.tex(var.title = "", fixef.title = "", stats.title = " ")
-#
-#
-# kable( etable( reg1 , reg2 , reg3 , reg4 , reg5 ,
-#         title = 'Average test scores for 4th graders',
-#         dict = varname_report,
-#         drop = vars_omit ,
-#         group = groupConf ,
-#         se.below = T,
-#         coefstat = 'se',
-#         fitstat = c('n','r2'),
-#         se.row = F,
-#         depvar = F ) ,
-#         col.names = c('(1)','(2)','(3)','(4)','(5)'),
-#        "latex", booktabs = TRUE,  position = "H",
-#        caption = 'Models to uncover relation between test score and student to teacher ratio') %>% kable_styling(latex_options = c("hold_position","scale_down"))
+#Summarize our findings:
+varname_report <- c("(Intercept)" = "Intercept",
+                   "logarea" = "Log Size",
+                   "lspline(logarea,4.5)1" = "Log Size (<4.5)",
+                   "lspline(logarea,4.5)2" = "Log Size (>=4.5)",
+                   "yearbuilt" = "Building Year",
+                   "lspline(noroom,4)1" ="Number of Rooms < 4",
+                   "lspline(noroom,4)2" ="Number of Rooms >= 4",
+                   "lspline(yearbuilt,1990)1" = "Building Year <1990",
+                   "lspline(yearbuilt,1990)2" = "Building Year >=1990",
+                   "condition" = "Condition")
+groupConf <- list("English" = c("english"),
+                  "Lunch" = c("lunch"),
+              "Other Special" = c("special"),
+              "Wealth Measures" = c("exptot","income","scratio"))
+vars_omit <- c("english|lunch|special|salary|exptot|income|scratio")
+
+# Note: coefstat = 'confint' is just an example, usually you need to report se.
+style_noHeaders = style.tex(var.title = "", fixef.title = "", stats.title = " ")
+
+
+kable( etable( reg1 , reg2 , reg3 , reg4 , reg5 ,
+        title = 'Average Property Prices for Properties on Sale in Budapest',
+        dict = varname_report,
+       #drop = vars_omit ,
+        #group = groupConf ,
+        se.below = T,
+        coefstat = 'se',
+        fitstat = c('n','r2'),
+        se.row = F,
+        depvar = F ) ,
+        col.names = c('(1)','(2)','(3)','(4)','(5)'),
+       "latex", booktabs = TRUE,  position = "H",
+       caption = 'Models to uncover relation between Size of Properties and Price of Properties') %>% kable_styling(latex_options = c("hold_position","scale_down"))
 ```
 
 
@@ -317,7 +340,7 @@ We compare multiple models to learn about the stability of the parameters. Bla-b
 
 ## Robustness check / 'Heterogeneity analysis'
 
-Task: calculate and report t-tests for each countries. 
+
 TODO
 
 
@@ -328,3 +351,7 @@ HERE COMES WHAT WE HAVE LEARNED AND WHAT WOULD STRENGHTEN AND WEAKEN OUR ANALYSI
 ## Appendix
 TODO
 Here comes all the results which are referenced and not essential for understanding the MAIN results.
+```{r}
+
+```
+
