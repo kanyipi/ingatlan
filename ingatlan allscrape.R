@@ -173,7 +173,7 @@ get_read_property <- function(nameofcsvs, linktoscrape, noofpagestoget = 0,
 
 
 
-
+# read in the saved files given the name
 get_all_property <- function(nameofcsv) {
   csv_list <- list.files(nameofcsv)
   max_file_no <- 0
@@ -200,6 +200,7 @@ get_all_property <- function(nameofcsv) {
   return(df)
 }
 
+# get nth element from list
 elementlist <- function(lst, n) {
   sapply(lst, `[`, n)
 }
@@ -227,6 +228,7 @@ get_clean <- function(df) {
     substr(1, 7) %>%
     as.double()
   
+  # convert currencies to double
   df <- df %>% mutate(price_in_cur = elementlist(str_split(price, " "), 3))
   df <- df %>% mutate(price_in_cur = ifelse(price_in_cur != "Ft", "EUR",
                                             ifelse(price_in_cur == "Ft", "HUF", "other")
@@ -280,22 +282,19 @@ get_clean <- function(df) {
 # for the date of the scrape but that would mess up my read back
 # so maybe a better solution would be to tag the properties when read in with Sys.time()
 
-
-scrapename <- "hungary"
+## READ
+#scrapename <- "hungary"
 #get_read_property(scrapename, "https://ingatlan.com/lista/elado+lakas+budapest")
 df <- get_all_property(scrapename)
-write.csv(df,"hungaryall.csv")
-
-df <- read.csv("https://raw.githubusercontent.com/kanyipi/ingatlan/main/")
-
 df <- df %>% get_clean()
+#write.csv(df,"hungaryall.csv")
+
+df <- read.csv("https://raw.githubusercontent.com/kanyipi/ingatlan/main/hungary/hungaryall.csv")
+
+
 
 # some upgrades which could be done:
 # update the last page while running, as it may change
 # update the reading back code so files work with numbers
 # tag the data, with the link it cam from and the date
-
-
-
-
-##TODO rmarkdown and graphs
+# implement some search
