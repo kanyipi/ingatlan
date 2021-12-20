@@ -7,14 +7,9 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
-#TODO
-#• Data is well described, with sources, important features. May be (not needed) graph(s), table(s) to
-#support. 15%
-#• Modelling choices are well presented, and supported by
-#Results are logically presented. Key coefficient(s) explained precisely. Results are appropriately interpreted. 20%(interpret other coeffs)
-#robustness
-#extra live euro conversion
-#map
+
+# TODO APPENDIx
+# map
 
 rm(list = ls())
 
@@ -30,7 +25,7 @@ library(reshape2)
 library(kableExtra)
 library(rvest)
 
-# Get the data
+# Get the data from my github repository
 
 df <- read.csv("https://raw.githubusercontent.com/kanyipi/ingatlan/main/budapestall/budapestallfull.csv")
 ```
@@ -39,15 +34,17 @@ df <- read.csv("https://raw.githubusercontent.com/kanyipi/ingatlan/main/budapest
 
 This is a causal analysis on the properties on sale in Budapest. The data was scraped from ingatlan.com by me on the 16th of December, 2021. I investigate the effect of the size of the property on the price of the property. 
 
-I think analyzing housing prices is always meaningful, as it is a crucial part of our daily life, as everyone needs to live somewhere. People buy sell and rent properties all the time, which is influenced by the prices of the properties. Understanding the change in the prices offers us the opportunity to have further investigations.
-My research question is simple:
-Are the properties on sale in Budapest on average more expensive if they are larger?
+I think analyzing housing prices is always meaningful, it is a crucial part of our daily lives, as everyone needs to live somewhere. People buy, sell and rent properties all the time. This is influenced by the prices of the properties. Understanding the change in the prices offers us the opportunity to have further investigations into what causes these changes.
+
+My research question is simple: Are the houses on sale in Budapest on average more expensive if they are larger (in m2)?
 
 ## Data
 
-The data is from ingatlan.com. It was scraped on the 16th of December, 2021. The scrapper went through every property listed under https://ingatlan.com/szukites/elado+lakas+budapest. It scraped, the address, the price, the number of rooms, the description, and the 20 element long list below the description. We have 27908 observations and 27 variables.
-The scrape and the cleaning are more detailed in the appendix.
-TODO appendixbe kep es a scraper es clean filter.
+The data is from ingatlan.com. It was scraped on the 16th of December, 2021. The scrapper went through every property listed under https://ingatlan.com/szukites/elado+lakas+budapest and all of the later pages. It scraped the address, the price, the number of rooms, the description, and the 20 element long list below the description. I have 27 908 observations and 27 variables. It is accessible on https://raw.githubusercontent.com/kanyipi/ingatlan/main/budapestall/budapestallfull.csv.
+
+The first main variable is the price, how much the property costs. It is a double and it should be in millions of HUF. I converted all of the prices to millions of HUF with the help of price_in_cur which is either HUF or EUR. I converted the EUR ones to millions of HUF with live EUR to HUF rates. The other main variable is area, it is in m2 it is format. Before cleaning it's format was "<number> m,". I converted it to number and removed the string parts. The next variable I use is noroom which denotes the number of rooms and the number of half rooms. I calculate the final noroom to be number of full rooms + number of half rooms / 2, which makes the assumption that 2 half rooms are a normal room, which may or may not be true. The next variable is Ingatlan.állapota, which is the condition of the property I mapped  them to integer values shown in appendix, where the higher the value the better the condition it is in. The last variable is Építés.éve which is the building year. The problem is that we have years after 2010 and intervals before 2010 in string. I mapped the intervals to their last year and tried to solve the issue by splining this variable at 2010.  
+
+The filtering is selecting these variables, removing the ones with NA values, and filtering on size and price, so that remaining ones are liveable houses.
 
 
 ```{r, echo=FALSE}
@@ -122,7 +119,7 @@ get_filtered <- function(df, cols, price_filter_1 = 5, price_filter_2 = 300, are
     drop_na()
 
   # n 18721
-  
+
   # filtering on prices
   df <- df %>% filter(price_filter_1 < price && price < price_filter_2)
 
@@ -141,7 +138,9 @@ filter_cols <- c(
   "noroom", "yearbuilt", "condition"
 )
 
-df <- df %>% get_clean() %>% get_filtered(filter_cols)
+df <- df %>%
+  get_clean() %>%
+  get_filtered(filter_cols)
 
 # Creating log values for price and size
 df <- df %>% mutate(logprice = log(price))
@@ -156,12 +155,12 @@ P05 <- function(x) {
   quantile(x, 0.05, na.rm = T)
 }
 
-#data summary
-datasummary((`Price` = price) +
-  (`Size` = area) +
-  (`Number of Rooms` = noroom) +
-  (`Building Year` = yearbuilt) +
-  (`Condition` = condition) ~
+# data summary
+datasummary((`Price` <- price) +
+  (`Size` <- area) +
+  (`Number of Rooms` <- noroom) +
+  (`Building Year` <- yearbuilt) +
+  (`Condition` <- condition) ~
 Mean + Median + SD + Min + Max + P05 + P95,
 data = df,
 title = "Descriptive statistics"
@@ -169,15 +168,16 @@ title = "Descriptive statistics"
   kable_styling(latex_options = c("HOLD_position", "scale_down"))
 ```
 
-The number of observations is `r sum(!is.na(df$price))` for all of our key variables. These are after filtering on price so that it is greater than 5M HUF, but less then 300M HUF. Also filtered on size so it is less greater than 10 m2, but less than 250 m2. I choose these values as I feel like these are filtering for habitable houses. Usually bigger and more expensive properties were multiple houses, for investing. While smaller and cheaper properties were not really houses, but part of houses and people looking for swap houses.
+The number of observations is `r sum(!is.na(df$price))` for all of our key variables. These are after filtering on price so that it is greater than 5M HUF, but less then 300M HUF. Also filtered on size so it is less greater than 10 m2, but less than 250 m2. I choose these values as I feel like these are filtering for liveable houses. Usually bigger and more expensive properties were multiple houses, for investing. While smaller and cheaper properties were not really properties, but part of houses and people looking to swap houses.
 
 These are the summary stats of the already filtered dataset, so as we can see the minimums and maximum are close to the filter values.
 The mean of the price is 65.12M HUF the median is 54.5M HUF this means we have a long right tail.
 The mean of the Size is 69.60 m2 the median is 64.0 m2 this means we have a long right tail.
+The statistics for building year are not that meaningful because of the interval structure before 2010.
 
-As the focus are on the price and on the size, the next Figure shows the histograms for these variables.
+As the focus is on the price and on the size, the next Figure shows the histograms for these variables.
 I show the rest of the histograms in the appendix.
-TODO
+
 ```{r, echo=FALSE, warning=FALSE, fig.width=8, fig.height = 3, fig.align="center" }
 # price
 p1 <- ggplot(df, aes(x = price)) +
@@ -198,15 +198,14 @@ association_figs <- ggarrange(p1, p2,
 association_figs
 ```
 
-We can see the long right tail on the histograms.
+The long right tail on the histograms can be seen.
 
-We can see the level, and log associations of price and area.
-The key pattern of associations are:
+Here is the level, and the log associations of price and area:
 
 ```{r, echo=FALSE, warning=FALSE, fig.width=4, fig.height = 3, fig.align="center" }
 
 
-chck_sp_normal <- function(df,x_var, x_lab="", y_lab="") {
+chck_sp_normal <- function(df, x_var, x_lab = "", y_lab = "") {
   varlist <- c("price", x_var)
   df2 <- df %>%
     group_by(!!!rlang::syms(varlist)) %>%
@@ -219,7 +218,7 @@ chck_sp_normal <- function(df,x_var, x_lab="", y_lab="") {
     theme_bw()
 }
 
-chck_sp_log <- function(df,x_var, x_lab="", y_lab="") {
+chck_sp_log <- function(df, x_var, x_lab = "", y_lab = "") {
   varlist <- c("logprice", x_var)
   df2 <- df %>%
     group_by(!!!rlang::syms(varlist)) %>%
@@ -234,126 +233,179 @@ chck_sp_log <- function(df,x_var, x_lab="", y_lab="") {
 
 
 # Our main interest: student-to-teacher ratio:
-p3 <- chck_sp_normal(df,"area", "", "Level Price")
-p4 <- chck_sp_normal(df,"logarea")
-p5 <- chck_sp_log(df,"area", " Level Size", "Log Price")
-p6 <- chck_sp_log(df,"logarea", "Log Size")
+p3 <- chck_sp_normal(df, "area", "", "Level Price")
+p4 <- chck_sp_normal(df, "logarea")
+p5 <- chck_sp_log(df, "area", " Level Size", "Log Price")
+p6 <- chck_sp_log(df, "logarea", "Log Size")
 
-association_figs2 <- ggarrange(p3, p4, p5, p6,
+association_figs <- ggarrange(p3, p4, p5, p6,
   ncol = 2, nrow = 2
 )
-association_figs2
-
-# TODO
+association_figs
 ```
 
-How will you include this in your model?
-TODO
-Short description on the other variables: 2-10 sentence depends on the amount of variables you have. You should reference your decisions on the graphs/analysis which are located in the appendix.
+The five models I made are :
+
+- The first is: a simple linear regression of price on area both of them in logs
+- The second is: area is splined with one knot at 4.5. This model is to see if the relationship is the same across the whole data
+- The third is: add the building year as a control variable
+- The forth is: number of rooms added as a control variable, this may not be that useful as number of rooms is maybe heavily correlated with the size
+- The fifth is: condition added, year built splined at 2010
+
+The choice of variables was mostly done by what interested me. There were some other interesting variables, for example on which floor the property is or what is the energy certificate of the property. For these I felt like these would be an additional "filter", as for example old houses don't have energy certificates and family houses don't have floors.
 
 ## Model
 
 
 ```{r, echo = FALSE }
-# TODO
-# reg1: NO control, simple linear regression
+
+# reg1: NO control, simple linear regression both sides in logs
 reg1 <- feols(logprice ~ logarea, data = df, vcov = "hetero")
 
-# reg2: NO controls, use piecewise linear spline(P.L.S) with a knot at 18
+# reg2: NO controls, use piecewise linear spline(P.L.S) with a knot at 4.5
 reg2 <- feols(logprice ~ lspline(logarea, 4.5), data = df, vcov = "hetero")
 
-# reg3: control for english learners dummy (english_d) only.
-#   Is your parameter different? Is it a confounder?
+# reg3: control for yearbuilt
 
 reg3 <- feols(logprice ~ lspline(logarea, 4.5) + yearbuilt, data = df, vcov = "hetero")
-##
-# reg4: reg3 + Schools' special students measures (lunch with P.L.S, knot: 15; and special)
+
+# reg4: reg3 + noroom P.L.s knot at 4.5
 
 reg4 <- feols(logprice ~ lspline(logarea, 4.5) + yearbuilt +
   +lspline(noroom, 4), data = df, vcov = "hetero")
 
-#
-# reg5: reg4 + salary with P.L.S, knots at 35 and 40, exptot, log of income and scratio
 
-reg5 <- feols(logprice ~ lspline(logarea, 4.5) + lspline(yearbuilt, 1990) +
+# reg5: reg4 + yearbuilt with P.L.S, knots at 2010 and condition
+
+reg5 <- feols(logprice ~ lspline(logarea, 4.5) + lspline(yearbuilt, 2010) +
   +lspline(noroom, 4) + condition, data = df, vcov = "hetero")
 
 # Naming the coefficients for pretty output
-# TODO
- alpha  <- round( reg5$coeftable[1,1] , 2 )
- b1 <- round( reg5$coeftable[2,1] , 2 )
- b2 <- round( reg5$coeftable[3,1] , 2 )
+alpha <- round(reg5$coeftable[1, 1], 2)
+b1 <- round(reg5$coeftable[2, 1], 2)
+b2 <- round(reg5$coeftable[3, 1], 2)
+b3 <- round(reg5$coeftable[4, 1], 2)
+b4 <- round(reg5$coeftable[5, 1], 2)
+b5 <- round(reg5$coeftable[6, 1], 2)
+b6 <- round(reg5$coeftable[7, 1], 2)
+b7 <- round(reg5$coeftable[8, 1], 2)
 ```
-TODO
+
 My preferred model is:
 
-log(price)  = $`r alpha`$ + $`r b1`$ $( log(size) < 4,5)$ $`r b2`$ $( log area \geq 18) + \delta Z$
+log(price)  = $`r alpha`$ + $`r b1`$ $( log(size) < 4,5)$ $`r b2`$ $( log(size) \geq 4.5) + \delta Z$
 
 where $Z$ are standing for the controls, which includes controlling for year built, number of rooms, and condition. 
 From this model we can infer:
 
 - alpa $`r alpha`$ is hard to interpret as both sides are in log, so we are more interested in the differences
-- when the size of properties is 1 percent larger, but below the log value of 4.5, we see properties to cost on average $`r abs(b1)`$ percent more.
-- when the size of properties is 1 percent larger, but the log value is above or equal to 4.5, we see properties to cost on average $`r abs(b2)`$ percent more.
+
+- when the price of properties is 1 percent larger, but the log value of size is below 4.5, we see properties to be on average $`r abs(b1)`$ percent more expensive.
+
+- when the price of properties is 1 percent larger, but the log value of size is above or equal to 4.5, we see properties to be on average $`r abs(b2)`$ percent more expensive.
+
+- when the number of rooms is 1 unit larger, but the the number of rooms is below 4, we see properties to be on average $`r abs(b5)`$  percent more expensive.
+
+- when the number of rooms is 1 unit larger, but the the number of rooms is above or equal to 4, we see properties to be on average $`r abs(b6)`$  percent less expensive.
+
+- when the building year is 1 unit interval younger, but the the building year is below 2010, we see properties to be on average $`r abs(b3)`$  percent less expensive.
+
+- when the building year is 1 year younger, but the the building year is above or equal 2010, we see properties to be on average $`r abs(b4)`$  percent more expensive.
+
+- when the condition is 1 unit better, we see properties to be on average $`r abs(b7)`$  percent more expensive.
+
+
 
 Based on the heteroskedastic robust standard errors, these results are statistically different from zero. To show that, I have run a two-sided hypothesis test:
 $$H_0:=\beta_1 = 0$$
 $$H_A:=\beta_1 \neq 0$$
 I have the t-statistic as `r round( reg5$coeftable[2,3] , 2 )` and the p-value as `r round( reg5$coeftable[2,4] , 2 )`, which confirms my conclusion.
 
-We compare multiple models to learn about the stability of the parameters:
+
+
+I compare the models to learn about the stability of the parameters:
 
 ```{r, echo = FALSE }
 #
-#Summarize our findings:
-varname_report <- c("(Intercept)" = "Intercept",
-                   "logarea" = "Log Size",
-                   "lspline(logarea,4.5)1" = "Log Size (<4.5)",
-                   "lspline(logarea,4.5)2" = "Log Size (>=4.5)",
-                   "yearbuilt" = "Building Year",
-                   "lspline(noroom,4)1" ="Number of Rooms < 4",
-                   "lspline(noroom,4)2" ="Number of Rooms >= 4",
-                   "lspline(yearbuilt,1990)1" = "Building Year <1990",
-                   "lspline(yearbuilt,1990)2" = "Building Year >=1990",
-                   "condition" = "Condition")
+# Summarize our findings:
+varname_report <- c(
+  "(Intercept)" = "Intercept",
+  "logarea" = "Log Size",
+  "lspline(logarea,4.5)1" = "Log Size (<4.5)",
+  "lspline(logarea,4.5)2" = "Log Size (>=4.5)",
+  "yearbuilt" = "Building Year",
+  "lspline(noroom,4)1" = "Number of Rooms < 4",
+  "lspline(noroom,4)2" = "Number of Rooms >= 4",
+  "lspline(yearbuilt,2010)1" = "Building Year <2010",
+  "lspline(yearbuilt,2010)2" = "Building Year >=2010",
+  "condition" = "Condition"
+)
 
-# Note: coefstat = 'confint' is just an example, usually you need to report se.
-style_noHeaders = style.tex(var.title = "", fixef.title = "", stats.title = " ")
+
+style_noHeaders <- style.tex(var.title = "", fixef.title = "", stats.title = " ")
 
 
-kable( etable( reg1 , reg2 , reg3 , reg4 , reg5 ,
-        title = 'Average Property Prices for Properties on Sale in Budapest',
-        dict = varname_report,
-       #drop = vars_omit ,
-        #group = groupConf ,
-        se.below = T,
-        coefstat = 'se',
-        fitstat = c('n','r2'),
-        se.row = F,
-        depvar = F ) ,
-        col.names = c('(1)','(2)','(3)','(4)','(5)'),
-       "latex", booktabs = TRUE,  position = "H",
-       caption = 'Models to uncover relation between Size of Properties and Price of Properties') %>% kable_styling(latex_options = c("hold_position","scale_down"))
+kable(etable(reg1, reg2, reg3, reg4, reg5,
+  title = "Average Property Prices for Properties on Sale in Budapest",
+  dict = varname_report,
+  se.below = T,
+  coefstat = "se",
+  fitstat = c("n", "r2"),
+  se.row = F,
+  depvar = F
+),
+col.names = c("(1)", "(2)", "(3)", "(4)", "(5)"),
+"latex", booktabs = TRUE, position = "H",
+caption = "Models to uncover relation between Size of Properties and Price of Properties"
+) %>% kable_styling(latex_options = c("hold_position", "scale_down"))
 ```
 
 
 
 
 
-## Robustness check / 'Heterogeneity analysis'
+## Robustness Check, External Validity
 
-
-TODO
+I think the models are pretty robust as my question is is pretty easy, the R squares are starting from 0.68 to 0.75. This means that the 75% price variance is explained by the size variance. To see external validity, on Budapest on other dates, this could be done on a later date and reconfirmed. For other places we could scrape their websites, but I am confident that properties are usually more expensive when they are larger, at least for Budapest.
 
 
 ## Conclusion
-TODO
-HERE COMES WHAT WE HAVE LEARNED AND WHAT WOULD STRENGHTEN AND WEAKEN OUR ANALYSIS.
+
+In conclusion I think properties are more expensive when they are larger at least in Budapest, I think this should be eternally valid in time well, a somewhat valid for other places too. There may be cultures where the smaller the property the better, or where people need to pay large sums of property tax on big properties making the condition more important. Some ideas for further work would be to scrape again and check the changes in prices. This would cause the problem of only the remaining properties being advertised. There could be also more variables included, but that may force us to only analyse some kind of properties. It is also noteworthy that out of the three categories of causality, I believe this is in the category where x causes the changes is y.
 
 ## Appendix
-TODO
-Here comes all the results which are referenced and not essential for understanding the MAIN results.
-```{r}
 
+## Condition map
+
+```{r, echo = FALSE }
+#Condition map
+hungarian_condition <- c("nincs megadva", "befejezetlen", "felújítandó", "közepes állapotú", "jó állapotú", "felújított", "újszeru", "új építésu")
+english_condition <- c("NA", "not finished", "needs renovation", "mediocore condition", "good condition", "renovated", "like new", "newly built")
+integer_value <- c(NA, seq(0:6))
+condition_map <- data.frame(rbind(hungarian_condition, english_condition, integer_value))
+
+
+condition_map %>%
+  kable(col.names = NULL) %>%
+  kable_styling(latex_options = c("hold_position", "scale_down"))
 ```
+## Histograms for Condition and Number of Rooms
 
+```{r, echo = FALSE }
+#histogram for Condition and Number of rooms
+ap1 <- ggplot(df, aes(x = condition)) +
+  geom_histogram(binwidth = 1, fill = "navyblue", color = "white") +
+  labs(y = "Count", x = "Condition of Properties on Sale in Budapest") +
+  theme_bw()
+
+ap2 <- ggplot(df, aes(x = noroom)) +
+  geom_histogram(binwidth = 1, fill = "navyblue", color = "white") +
+  labs(y = "Count", x = "Number of Rooms in Properties on Sale in Budapest in m2") +
+  theme_bw() +
+  xlim(0, 7)
+
+association_figs <- ggarrange(ap1, ap2,
+  ncol = 1, nrow = 2
+)
+association_figs
+```
