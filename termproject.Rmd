@@ -8,12 +8,12 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 
-# TODO APPENDIx
-# map
-
 rm(list = ls())
 
+# please install the required libraries, and webshot::install_phantomjs()
+
 # Libraries
+library(webshot)
 library(leaflet)
 library(AER)
 library(tidyverse)
@@ -36,13 +36,13 @@ This is a causal analysis on the properties on sale in Budapest. The data was sc
 
 I think analyzing housing prices is always meaningful, it is a crucial part of our daily lives, as everyone needs to live somewhere. People buy, sell and rent properties all the time. This is influenced by the prices of the properties. Understanding the change in the prices offers us the opportunity to have further investigations into what causes these changes.
 
-My research question is simple: Are the houses on sale in Budapest on average more expensive if they are larger (in m2)?
+My research question is simple: Are the houses on sale in Budapest on average more expensive if they are larger (in m²)?
 
 ## Data
 
 The data is from ingatlan.com. It was scraped on the 16th of December, 2021. The scrapper went through every property listed under https://ingatlan.com/szukites/elado+lakas+budapest and all of the later pages. It scraped the address, the price, the number of rooms, the description, and the 20 element long list below the description. I have 27 908 observations and 27 variables. It is accessible on https://raw.githubusercontent.com/kanyipi/ingatlan/main/budapestall/budapestallfull.csv.
 
-The first main variable is the price, how much the property costs. It is a double and it should be in millions of HUF. I converted all of the prices to millions of HUF with the help of price_in_cur which is either HUF or EUR. I converted the EUR ones to millions of HUF with live EUR to HUF rates. The other main variable is area, it is in m2 it is format. Before cleaning it's format was "<number> m,". I converted it to number and removed the string parts. The next variable I use is noroom which denotes the number of rooms and the number of half rooms. I calculate the final noroom to be number of full rooms + number of half rooms / 2, which makes the assumption that 2 half rooms are a normal room, which may or may not be true. The next variable is Ingatlan.állapota, which is the condition of the property I mapped  them to integer values shown in appendix, where the higher the value the better the condition it is in. The last variable is Építés.éve which is the building year. The problem is that we have years after 2010 and intervals before 2010 in string. I mapped the intervals to their last year and tried to solve the issue by splining this variable at 2010.  
+The first main variable is the price, how much the property costs. It is a double and it should be in millions of HUF. I converted all of the prices to millions of HUF with the help of price_in_cur which is either HUF or EUR. I converted the EUR ones to millions of HUF with live EUR to HUF rates. The other main variable is area, it is in m² it is format. Before cleaning it's format was "<number> m,". I converted it to number and removed the string parts. The next variable I use is noroom which denotes the number of rooms and the number of half rooms. I calculate the final noroom to be number of full rooms + number of half rooms / 2, which makes the assumption that 2 half rooms are a normal room, which may or may not be true. The next variable is Ingatlan.állapota, which is the condition of the property I mapped  them to integer values shown in appendix, where the higher the value the better the condition it is in. The last variable is Építés.éve which is the building year. The problem is that we have years after 2010 and intervals before 2010 in string. I mapped the intervals to their last year and tried to solve the issue by splining this variable at 2010.  
 
 The filtering is selecting these variables, the address, and the description, then removing the ones with NA values, and filtering on size and price, so that remaining ones are liveable houses.
 
@@ -166,19 +166,21 @@ data = df,
 title = "Descriptive statistics"
 ) %>%
   kable_styling(latex_options = c("HOLD_position", "scale_down"))
+
 ```
 
-The number of observations is `r sum(!is.na(df$price))` for all of our key variables. These are after filtering on price so that it is greater than 5M HUF, but less then 300M HUF. Also filtered on size so it is less greater than 10 m2, but less than 250 m2. I choose these values as I feel like these are filtering for liveable houses. Usually bigger and more expensive properties were multiple houses, for investing. While smaller and cheaper properties were not really properties, but part of houses and people looking to swap houses.
+The number of observations is `r sum(!is.na(df$price))` for all of our key variables. These are after filtering on price so that it is greater than 5M HUF, but less then 300M HUF. Also filtered on size so it is less greater than 10 m², but less than 250 m². I choose these values as I feel like these are filtering for liveable houses. Usually bigger and more expensive properties were multiple houses, for investing. While smaller and cheaper properties were not really properties, but part of houses and people looking to swap houses.
 
 These are the summary stats of the already filtered dataset, so as we can see the minimums and maximum are close to the filter values.
 The mean of the price is 65.12M HUF the median is 54.5M HUF this means we have a long right tail.
-The mean of the Size is 69.60 m2 the median is 64.0 m2 this means we have a long right tail.
+The mean of the Size is 69.60 m² the median is 64.0 m² this means we have a long right tail.
 The statistics for building year are not that meaningful because of the interval structure before 2010.
 
 As the focus is on the price and on the size, the next Figure shows the histograms for these variables.
 I show the rest of the histograms in the appendix.
 
 ```{r, echo=FALSE, warning=FALSE, fig.width=8, fig.height = 3, fig.align="center" }
+
 # price
 p1 <- ggplot(df, aes(x = price)) +
   geom_histogram(binwidth = 10, fill = "navyblue", color = "white") +
@@ -188,14 +190,16 @@ p1 <- ggplot(df, aes(x = price)) +
 # size
 p2 <- ggplot(df, aes(x = area)) +
   geom_histogram(binwidth = 10, fill = "navyblue", color = "white") +
-  labs(y = "Count", x = "Size of Properties on Sale in Budapest in m2") +
+  labs(y = "Count", x = "Size of Properties on Sale in Budapest in m²") +
   theme_bw()
 
 association_figs <- ggarrange(p1, p2,
   hjust = -0.6,
   ncol = 2, nrow = 1
 )
+
 association_figs
+
 ```
 
 The long right tail on the histograms can be seen.
@@ -203,7 +207,6 @@ The long right tail on the histograms can be seen.
 Here is the level, and the log associations of price and area:
 
 ```{r, echo=FALSE, warning=FALSE, fig.width=4, fig.height = 3, fig.align="center" }
-
 
 chck_sp_normal <- function(df, x_var, x_lab = "", y_lab = "") {
   varlist <- c("price", x_var)
@@ -230,7 +233,6 @@ chck_sp_log <- function(df, x_var, x_lab = "", y_lab = "") {
     labs(x = x_lab, y = y_lab) +
     theme_bw()
 }
-
 
 # Our main interest: student-to-teacher ratio:
 p3 <- chck_sp_normal(df, "area", "", "Level Price")
@@ -341,9 +343,7 @@ varname_report <- c(
   "condition" = "Condition"
 )
 
-
 style_noHeaders <- style.tex(var.title = "", fixef.title = "", stats.title = " ")
-
 
 kable(etable(reg1, reg2, reg3, reg4, reg5,
   title = "Average Property Prices for Properties on Sale in Budapest",
@@ -378,7 +378,8 @@ In conclusion I think properties are more expensive when they are larger at leas
 ## Condition map
 
 ```{r, echo = FALSE }
-#Condition map
+
+# Condition map
 hungarian_condition <- c("nincs megadva", "befejezetlen", "felújítandó", "közepes állapotú", "jó állapotú", "felújított", "újszeru", "új építésu")
 english_condition <- c("NA", "not finished", "needs renovation", "mediocore condition", "good condition", "renovated", "like new", "newly built")
 integer_value <- c(NA, seq(0:6))
@@ -392,7 +393,8 @@ condition_map %>%
 ## Histograms for Condition and Number of Rooms
 
 ```{r, echo = FALSE }
-#histogram for Condition and Number of rooms
+
+# histogram for Condition and Number of rooms
 ap1 <- ggplot(df, aes(x = condition)) +
   geom_histogram(binwidth = 1, fill = "navyblue", color = "white") +
   labs(y = "Count", x = "Condition of Properties on Sale in Budapest") +
@@ -400,7 +402,7 @@ ap1 <- ggplot(df, aes(x = condition)) +
 
 ap2 <- ggplot(df, aes(x = noroom)) +
   geom_histogram(binwidth = 1, fill = "navyblue", color = "white") +
-  labs(y = "Count", x = "Number of Rooms in Properties on Sale in Budapest in m2") +
+  labs(y = "Count", x = "Number of Rooms in Properties on Sale in Budapest in m²") +
   theme_bw() +
   xlim(0, 7)
 
@@ -412,12 +414,121 @@ association_figs
 
 ## Some maps to visualise the mean price and size in each district
 
-```{r}
+These maps were made by the leaflet package, it was hard to show them in a pdf report as leaflet is only knitable to html, but with the use of the webshot packages it is knitable to pdf.
+The coordinates of the districts are collected by hand from their hungarian wikipedia page.
+I merged the coordinate table to the average price and size for each district.
+Then I looped through them and added their labels to the map.
+
+\newpage
+Average outer district prices of properties in millions of HUF for each district as label:
+
+```{r, echo=FALSE}
+
 # read in the latitudes and longitudes of districts from csv made by me
-district_lat_lon <- read.csv("")
-# get average price for each district  
-average_price_district <- df %>% mutate(district = elementlist(str_split(address,"\\."),1)) %>% group_by(district) %>% summarise(mean=mean(price))
+district_lat_lon <- read.csv("https://raw.githubusercontent.com/kanyipi/ingatlan/main/districtlatlon.csv")
 
+# convert lat and longs to double columns
+district_lat_lon <- district_lat_lon %>%
+  mutate(lat = as.double(elementlist(str_split(lon.lat, ","), 1))) %>%
+  mutate(lon = as.double(elementlist(str_split(lon.lat, ","), 2)))
 
+# get average price for each district
+average_price_district <- df %>%
+  mutate(district = elementlist(str_split(address, "\\."), 1)) %>%
+  group_by(district) %>%
+  summarise(mean_price = mean(price), mean_area = mean(area))
+
+# merge the coordinates to the means
+merged <- merge(district_lat_lon, average_price_district, by.x = "Roman", by.y = "district")
+
+# inner city list
+innercity <- c(1, 5, 6, 7, 8)
+
+# outer city price map
+mapouter <- leaflet() %>%
+  addTiles() %>%
+  setView(19.05, 47.5, 11)
+
+# loop through the districts when it is not inner district add a label with the roman value
+# and mean price at the given lat and long
+for (i in 1:nrow(merged)) {
+  if (!merged$Int[i] %in% innercity) {
+    mapouter <- mapouter %>%
+      addMarkers(
+        lng = merged$lon[i], lat = merged$lat[i],
+        label = paste0(merged$Roman[i], ":", round(merged$mean_price[i])),
+        labelOptions = labelOptions(noHide = T)
+      )
+  }
+}
+
+mapouter
 ```
 
+\newpage
+Average inner district prices of properties in millions of HUF for each district as label:
+
+```{r, echo=FALSE}
+
+# inner city price map
+mapinner <- leaflet() %>%
+  addTiles() %>%
+  setView(19.05, 47.5, 13)
+
+for (i in 1:nrow(merged)) {
+  mapinner <- mapinner %>%
+    addMarkers(
+      lng = merged$lon[i], lat = merged$lat[i],
+      label = paste0(merged$Roman[i], ":", round(merged$mean_price[i])),
+      labelOptions = labelOptions(noHide = T)
+    )
+}
+
+mapinner
+```
+
+\newpage
+Average outer district sizes of properties in m² for each district as label:
+
+```{r, echo=FALSE}
+
+# outer city size map
+mapoutersize <- leaflet() %>%
+  addTiles() %>%
+  setView(19.05, 47.5, 11)
+
+for (i in 1:nrow(merged)) {
+  if (!merged$Int[i] %in% innercity) {
+    mapoutersize <- mapoutersize %>%
+      addMarkers(
+        lng = merged$lon[i], lat = merged$lat[i],
+        label = paste0(merged$Roman[i], ":", round(merged$mean_area[i])),
+        labelOptions = labelOptions(noHide = T)
+      )
+  }
+}
+
+mapoutersize
+```
+
+\newpage
+Average inner district sizes of properties in m² for each district as label:
+
+```{r, echo=FALSE}
+
+# inner city size map
+mapinnersize <- leaflet() %>%
+  addTiles() %>%
+  setView(19.05, 47.5, 13)
+
+for (i in 1:nrow(merged)) {
+  mapinnersize <- mapinnersize %>%
+    addMarkers(
+      lng = merged$lon[i], lat = merged$lat[i],
+      label = paste0(merged$Roman[i], ":", round(merged$mean_area[i])),
+      labelOptions = labelOptions(noHide = T)
+    )
+}
+
+mapinnersize
+```
