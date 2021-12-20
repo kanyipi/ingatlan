@@ -7,7 +7,14 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
-
+#TODO
+#• Data is well described, with sources, important features. May be (not needed) graph(s), table(s) to
+#support. 15%
+#• Modelling choices are well presented, and supported by
+#Results are logically presented. Key coefficient(s) explained precisely. Results are appropriately interpreted. 20%(interpret other coeffs)
+#robustness
+#extra live euro conversion
+#map
 
 rm(list = ls())
 
@@ -32,8 +39,9 @@ df <- read.csv("https://raw.githubusercontent.com/kanyipi/ingatlan/main/budapest
 
 This is a causal analysis on the properties on sale in Budapest. The data was scraped from ingatlan.com by me on the 16th of December, 2021. I investigate the effect of the size of the property on the price of the property. 
 
-I think analysing housing prices is always meaningful, as it is a crucial part of our daily life, as everyone needs to live somewhere. People buy sell and rent properties all the time, which is influenced by the prices of the properties. Understanding the change in the prices offers us the opportunity to have further investigations.
-My goal is to see whether on average if larger properties are more expensive or not then smaller properties.
+I think analyzing housing prices is always meaningful, as it is a crucial part of our daily life, as everyone needs to live somewhere. People buy sell and rent properties all the time, which is influenced by the prices of the properties. Understanding the change in the prices offers us the opportunity to have further investigations.
+My research question is simple:
+Are the properties on sale in Budapest on average more expensive if they are larger?
 
 ## Data
 
@@ -229,8 +237,7 @@ chck_sp_log <- function(df,x_var, x_lab="", y_lab="") {
 p3 <- chck_sp_normal(df,"area", "", "Level Price")
 p4 <- chck_sp_normal(df,"logarea")
 p5 <- chck_sp_log(df,"area", " Level Size", "Log Price")
-p6 <- chck_sp_log(df,"logarea", "Log S
-                  ize")
+p6 <- chck_sp_log(df,"logarea", "Log Size")
 
 association_figs2 <- ggarrange(p3, p4, p5, p6,
   ncol = 2, nrow = 2
@@ -285,7 +292,7 @@ log(price)  = $`r alpha`$ + $`r b1`$ $( log(size) < 4,5)$ $`r b2`$ $( log area \
 where $Z$ are standing for the controls, which includes controlling for year built, number of rooms, and condition. 
 From this model we can infer:
 
-- $`r alpha`$ is hard to interpret as both sides are in log, so we are more interested in the differences
+- alpa $`r alpha`$ is hard to interpret as both sides are in log, so we are more interested in the differences
 - when the size of properties is 1 percent larger, but below the log value of 4.5, we see properties to cost on average $`r abs(b1)`$ percent more.
 - when the size of properties is 1 percent larger, but the log value is above or equal to 4.5, we see properties to cost on average $`r abs(b2)`$ percent more.
 
