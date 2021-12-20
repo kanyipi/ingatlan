@@ -14,7 +14,7 @@ knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 rm(list = ls())
 
 # Libraries
-
+library(leaflet)
 library(AER)
 library(tidyverse)
 library(lspline)
@@ -44,7 +44,7 @@ The data is from ingatlan.com. It was scraped on the 16th of December, 2021. The
 
 The first main variable is the price, how much the property costs. It is a double and it should be in millions of HUF. I converted all of the prices to millions of HUF with the help of price_in_cur which is either HUF or EUR. I converted the EUR ones to millions of HUF with live EUR to HUF rates. The other main variable is area, it is in m2 it is format. Before cleaning it's format was "<number> m,". I converted it to number and removed the string parts. The next variable I use is noroom which denotes the number of rooms and the number of half rooms. I calculate the final noroom to be number of full rooms + number of half rooms / 2, which makes the assumption that 2 half rooms are a normal room, which may or may not be true. The next variable is Ingatlan.állapota, which is the condition of the property I mapped  them to integer values shown in appendix, where the higher the value the better the condition it is in. The last variable is Építés.éve which is the building year. The problem is that we have years after 2010 and intervals before 2010 in string. I mapped the intervals to their last year and tried to solve the issue by splining this variable at 2010.  
 
-The filtering is selecting these variables, removing the ones with NA values, and filtering on size and price, so that remaining ones are liveable houses.
+The filtering is selecting these variables, the address, and the description, then removing the ones with NA values, and filtering on size and price, so that remaining ones are liveable houses.
 
 
 ```{r, echo=FALSE}
@@ -409,3 +409,15 @@ association_figs <- ggarrange(ap1, ap2,
 )
 association_figs
 ```
+
+## Some maps to visualise the mean price and size in each district
+
+```{r}
+# read in the latitudes and longitudes of districts from csv made by me
+district_lat_lon <- read.csv("")
+# get average price for each district  
+average_price_district <- df %>% mutate(district = elementlist(str_split(address,"\\."),1)) %>% group_by(district) %>% summarise(mean=mean(price))
+
+
+```
+
