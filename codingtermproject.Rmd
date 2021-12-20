@@ -304,7 +304,7 @@ df <- read.csv("https://raw.githubusercontent.com/kanyipi/ingatlan/main/hungary/
 
 ## Intro
 
-This began as a full Hungary scrape but it turned into a functional ingatlan.com scrapper. One can give the link and the number of pages you want to scrape and it will scrape every property on the search link.
+This project began as a full ingatlan.com scrape but it turned into a functional ingatlan.com scrapper. One can give it a search link and the number of pages they want to scrape and it will scrape every property on those pages.
 
 ## What it does
 
@@ -312,38 +312,46 @@ The major functions are:
 
 get_one_property which scrapes a property from an ingatlan.com link
 
-get_links_on_page which returns the absolute links from a ingatlan.com search page.
+get_links_on_page which returns the absolute links from an ingatlan.com search page
 
 get_all_property which does the scraping of the given link and saves down the properties in batches
 
-get_read_property which reads back the csvs to one data frame
+get_read_property which reads back the csvs to a data frame
 
 get_clean which cleans the data
 
 ## Analysis
 
-I wanted to show the structure, but it kills the html.
+Here is the structure, but only the first twenty characters of the description as they get very long and it causes issues with the html.
 ```{r}
-head(df) %>% kable()
+df %>% mutate(description=substr(description,1,20)) %>% head() %>% kable()
 ```
 
 ```{r}
-df %>% mutate(area = as.factor(round_any(area,50))) %>% 
+df %>% mutate(area = as.factor(round_any(area,30))) %>% 
 ggplot( aes(x = price, fill=area)) +
   geom_histogram(binwidth=10) + 
   xlim(0,300) +
+    labs(x = "Price (in Millions HUF)", 
+       y = "Count",
+       title = "Price Histogram of Hungarian Properties on Sale") +
   theme_bw()
 ```
 
+On this histogram we can see that the price distribution has it's majority between 0 and 100, and most of the properties there are rounded to 30 m2, 60 m2, and 90 m2.
 
 ```{r}
 df %>% mutate(price = as.factor(round_any(price,30))) %>% 
 ggplot( aes(x = area, fill=price)) +
   geom_histogram(binwidth=10) + 
   xlim(0,300) +
+      labs(x = "Size (in m2)", 
+       y = "Count",
+       title = "Size Histogram of Hungarian Properties on Sale") +
   theme_bw()
 ```
 
+On this histogram we can see that the size distribution has it's majority between 20 and 100, and most of the properties there are rounded to 30 m HUF, 60 m HUF, and 90 m HUF.
 
 ```{r}
 df %>% 
@@ -357,8 +365,11 @@ df %>%
   scale_x_discrete(guide = guide_axis(n.dodge=2))+
   guides(colour = 'none') + 
   labs(x = "Property Condition", 
-       y = "Price in Millions HUF")
+       y = "Price (in Millions HUF)",
+       title = "Violin Plot of Prices in Different Property Conditions")
 ```
+
+On this violin plot we can see a that the least properties are in befejezetlen which means not finished and that this category has the widest CI95. The average price for not finished (befejezetlen), newly built(új építésu), and like new (újszeru) are pretty same, with newly built being the highest.
 
 ```{r}
 df %>% 
@@ -372,8 +383,11 @@ df %>%
   scale_x_discrete(guide = guide_axis(n.dodge=3))+
   guides(colour = 'none') + 
   labs(x = "Year Built", 
-       y = "Price in Millions HUF")
+       y = "Price (in Millions HUF)",
+       title = "Violin Plot of Prices in Different Different Building Years")
 ```
+On this violin plot we can see a interesting trend namely that the mean price of the properties built before 1950 is way higher than those of that were built between 1950 and 1980, and 1981 and 2000, then between 2001 and 2010 is a higher. We can also see that these categories are denser as these are intervals instead of years. Then from 2011 till 2022 the mean is not changing too much. Then it goes up for 2023, 2024, and 2025. My theory is that only expensive properties are planned in advance with multiple years are advertised, and cheaper properties are only advertised once they are built. NA (nincs megadva) has the lowest mean, this may mean that they do not know when it was built, or they just do not want to tell.
+
 ## Conclusion
 
 In conclusion this is a very nice tool to scrape ingatlan.com as you wish.
