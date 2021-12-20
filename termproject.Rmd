@@ -309,11 +309,6 @@ varname_report <- c("(Intercept)" = "Intercept",
                    "lspline(yearbuilt,1990)1" = "Building Year <1990",
                    "lspline(yearbuilt,1990)2" = "Building Year >=1990",
                    "condition" = "Condition")
-groupConf <- list("English" = c("english"),
-                  "Lunch" = c("lunch"),
-              "Other Special" = c("special"),
-              "Wealth Measures" = c("exptot","income","scratio"))
-vars_omit <- c("english|lunch|special|salary|exptot|income|scratio")
 
 # Note: coefstat = 'confint' is just an example, usually you need to report se.
 style_noHeaders = style.tex(var.title = "", fixef.title = "", stats.title = " ")

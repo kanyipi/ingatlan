@@ -8,7 +8,10 @@ output: html_document
 ```{r setup, include=FALSE}
 # install.packages(c("rvest", "data.table", "jsonlite"))
 # rm(list = ls())
-
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+library(plyr)
+library(knitr)
+library(kableExtra)
 library(rvest)
 library(data.table)
 library(tidyverse)
@@ -301,7 +304,7 @@ df <- read.csv("https://raw.githubusercontent.com/kanyipi/ingatlan/main/hungary/
 
 ## Intro
 
-This began as a full Hungary scraped but it turned into a functional ingatlan.com scrapper. One can give the link and the number of pages you want to scrape.
+This began as a full Hungary scrape but it turned into a functional ingatlan.com scrapper. One can give the link and the number of pages you want to scrape and it will scrape every property on the search link.
 
 ## What it does
 
@@ -319,8 +322,14 @@ get_clean which cleans the data
 
 ## Analysis
 
+I wanted to show the structure, but it kills the html.
 ```{r}
-ggplot(df, aes(x = price)) +
+head(df) %>% kable()
+```
+
+```{r}
+df %>% mutate(area = as.factor(round_any(area,50))) %>% 
+ggplot( aes(x = price, fill=area)) +
   geom_histogram(binwidth=10) + 
   xlim(0,300) +
   theme_bw()
@@ -328,7 +337,8 @@ ggplot(df, aes(x = price)) +
 
 
 ```{r}
-ggplot(df, aes(x = area)) +
+df %>% mutate(price = as.factor(round_any(price,30))) %>% 
+ggplot( aes(x = area, fill=price)) +
   geom_histogram(binwidth=10) + 
   xlim(0,300) +
   theme_bw()
@@ -337,22 +347,33 @@ ggplot(df, aes(x = area)) +
 
 ```{r}
 df %>% 
-  filter(!is.na(condition) & !is.na(price)) %>%
-  mutate(condition=as.factor(condition)) %>% 
-  ggplot(aes(x = condition, y = price, colour = condition)) + 
+  filter(!is.na(Ingatlan.állapota) & !is.na(price)) %>%
+  mutate(Ingatlan.állapota=as.factor(Ingatlan.állapota)) %>% 
+  ggplot(aes(x = Ingatlan.állapota, y = price, colour = Ingatlan.állapota)) + 
   ylim(0,300) +
   geom_violin() +
   geom_jitter(alpha = .2, width = .1) +
   geom_boxplot(alpha = .5) +
+  scale_x_discrete(guide = guide_axis(n.dodge=2))+
   guides(colour = 'none') + 
-  labs(title = "Examining the effect of education level on BMI", 
-       x = "Education Level", 
-       y = "BMI")
+  labs(x = "Property Condition", 
+       y = "Price in Millions HUF")
 ```
 
 ```{r}
-
+df %>% 
+  filter(!is.na(Építés.éve) & !is.na(price)) %>%
+  mutate(Építés.éve=as.factor(Építés.éve)) %>% 
+  ggplot(aes(x = Építés.éve, y = price, colour = Építés.éve)) + 
+  ylim(0,300) +
+  geom_violin() +
+  geom_jitter(alpha = .2, width = .1) +
+  geom_boxplot(alpha = .5) +
+  scale_x_discrete(guide = guide_axis(n.dodge=3))+
+  guides(colour = 'none') + 
+  labs(x = "Year Built", 
+       y = "Price in Millions HUF")
 ```
 ## Conclusion
 
-In conclusion this is a very nice tool to scrape ingatlan.com as you wish
+In conclusion this is a very nice tool to scrape ingatlan.com as you wish.
